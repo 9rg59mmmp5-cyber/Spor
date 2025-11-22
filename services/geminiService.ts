@@ -2,12 +2,24 @@
 import { GoogleGenAI } from "@google/genai";
 import { WorkoutLog, WorkoutDay } from "../types";
 
-// NOTE: In a production environment, the API key should be handled more securely.
-// The prompt instructions specify using process.env.API_KEY.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to safely get API key without crashing the browser if process is not defined
+const getAI = () => {
+  let apiKey = '';
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+      apiKey = process.env.API_KEY;
+    }
+  } catch (e) {
+    // Ignore error
+  }
+  
+  // Initialize with provided key or a dummy one to prevent constructor error if key is missing
+  return new GoogleGenAI({ apiKey: apiKey || 'MISSING_KEY_PREVENTS_CRASH' });
+};
 
 export const askCoach = async (question: string, context: string): Promise<string> => {
   try {
+    const ai = getAI();
     const model = 'gemini-2.5-flash';
     
     const response = await ai.models.generateContent({
@@ -33,12 +45,13 @@ export const askCoach = async (question: string, context: string): Promise<strin
     return response.text || "Üzgünüm, şu an cevap veremiyorum.";
   } catch (error) {
     console.error("AI Error:", error);
-    return "Bağlantı hatası oluştu. Lütfen API anahtarınızı kontrol edin veya daha sonra tekrar deneyin.";
+    return "Bağlantı hatası oluştu. API anahtarı eksik olabilir.";
   }
 };
 
 export const getWorkoutAnalysis = async (recentLogs: WorkoutLog[], program: WorkoutDay[]): Promise<string> => {
   try {
+    const ai = getAI();
     const model = 'gemini-2.5-flash';
     
     // Simplify logs for the prompt to save tokens
@@ -46,13 +59,11 @@ export const getWorkoutAnalysis = async (recentLogs: WorkoutLog[], program: Work
       date: log.date,
       day: log.dayId,
       duration: log.duration,
-      // Map exercises to a simpler format: "ExerciseName: MaxWeight x Reps @ RPE"
       exercises: Object.entries(log.exercises).map(([id, sets]) => {
         const completedSets = sets.filter(s => s.completed);
         if (completedSets.length === 0) return null;
         const maxWeight = Math.max(...completedSets.map(s => s.weight));
-        const avgRpe = completedSets.reduce((acc, s) => acc + (s.rpe || 0), 0) / completedSets.length;
-        return `${id}: ${completedSets.length} sets (max ${maxWeight}kg)${avgRpe ? ` @ avg RPE ${avgRpe.toFixed(1)}` : ''}`;
+        return `${id}: ${completedSets.length} sets (max ${maxWeight}kg)`;
       }).filter(Boolean)
     }));
 
@@ -65,7 +76,7 @@ export const getWorkoutAnalysis = async (recentLogs: WorkoutLog[], program: Work
       Task: Provide 3 short, bulleted, high-impact recommendations for their next week. 
       Focus on:
       1. Progressive Overload (weight/reps increases)
-      2. Intensity (RPE/Proximity to failure - if RPE is low (<7), tell them to push harder)
+      2. Consistency
       3. Volume management
       
       Language: Turkish. Keep it motivating but strict. Use emojis.
@@ -83,6 +94,6 @@ export const getWorkoutAnalysis = async (recentLogs: WorkoutLog[], program: Work
     return response.text || "Şu an analiz yapılamıyor.";
   } catch (error) {
     console.error("Analysis Error:", error);
-    throw error;
+    return "Analiz servisi şu an kullanılamıyor.";
   }
 };

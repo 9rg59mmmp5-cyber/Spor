@@ -1,9 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
-import { Activity, Calendar, Bot, Dumbbell, ChevronLeft, CheckCircle2, Clock, AlertTriangle, LogOut, History as HistoryIcon, User, Trophy, Flame, ArrowRight } from 'lucide-react';
+import { Activity, Calendar, Bot, Dumbbell, ChevronLeft, CheckCircle2, Clock, Flame, ArrowRight, User } from 'lucide-react';
 import { WEEKLY_PROGRAM } from './constants';
 import { ExerciseCard } from './components/ExerciseCard';
 import { AICoach } from './components/AICoach';
-import { HistoryChart } from './components/HistoryChart';
 import { WorkoutTimer } from './components/WorkoutTimer';
 import { AIRecommendations } from './components/AIRecommendations';
 import { RestTimer } from './components/RestTimer';
@@ -11,7 +11,7 @@ import { MotivationCard } from './components/MotivationCard';
 import { ProfileView } from './components/ProfileView';
 import { IOSInstallPrompt } from './components/IOSInstallPrompt';
 import { AppView, WorkoutDay, ExerciseSet, WorkoutLog } from './types';
-import { saveWorkoutLog, getWorkoutLogs, startSession, endSession, getSessionStartTime } from './services/storageService';
+import { saveWorkoutLog, getWorkoutLogs, startSession, endSession } from './services/storageService';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
@@ -181,7 +181,7 @@ const App: React.FC = () => {
            </div>
         </div>
 
-        {/* Workout Programs List - Moved UP */}
+        {/* Workout Programs List - Priority: High (Moved UP) */}
         <div>
           <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2 px-1">
             <Dumbbell size={20} className="text-primary" />
@@ -222,10 +222,8 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* AI Recommendations Widget - Moved DOWN */}
+        {/* AI Recommendations Widget - Priority: Low (Moved DOWN) */}
         <AIRecommendations />
-
-        {/* Removed HistoryChart (Performance) as requested */}
       </div>
     </div>
   );
@@ -289,7 +287,7 @@ const App: React.FC = () => {
         
         {logs.length === 0 ? (
            <div className="flex flex-col items-center justify-center py-20 text-slate-600">
-             <HistoryIcon size={64} className="mb-6 opacity-20" />
+             <Calendar className="mb-6 opacity-20" size={64} />
              <p className="text-lg font-medium">Henüz kayıt yok</p>
              <p className="text-sm">İlk antrenmanını tamamla!</p>
            </div>
