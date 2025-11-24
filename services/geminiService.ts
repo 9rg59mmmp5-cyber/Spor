@@ -1,4 +1,5 @@
-halil ibrahim, [25.11.2025 02:03]
+'use server'; // <--- BU SATIR EKSİK OLDUĞU İÇİN ÇALIŞMIYOR OLABİLİR
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // Yardımcı fonksiyon: API anahtarını güvenli bir şekilde çeker
