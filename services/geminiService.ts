@@ -1,30 +1,43 @@
+halil ibrahim, [25.11.2025 02:03]
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-import { GoogleGenAI } from "@google/genai";
-import { WorkoutLog, WorkoutDay } from "../types";
-
-// Helper to safely get API key without crashing the browser if process is not defined
+// Yardımcı fonksiyon: API anahtarını güvenli bir şekilde çeker
 const getAI = () => {
   let apiKey = '';
   try {
-    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+    // Vercel veya lokal ortam değişkenini kontrol et
+    if (process.env.API_KEY) {
       apiKey = process.env.API_KEY;
     }
   } catch (e) {
-    // Ignore error
+    console.error("Ortam değişkenlerine erişilemedi.");
   }
   
-  // Initialize with provided key or a dummy one to prevent constructor error if key is missing
-  return new GoogleGenAI({ apiKey: apiKey || 'MISSING_KEY_PREVENTS_CRASH' });
+  // Eğer anahtar yoksa null döndür, uygulamayı çökertme
+  if (!apiKey) {
+      console.warn("API Key bulunamadı! Vercel ayarlarında 'API_KEY' tanımladığından emin ol.");
+      return null;
+  }
+
+  return new GoogleGenerativeAI(apiKey);
 };
 
 export const askCoach = async (question: string, context: string): Promise<string> => {
   try {
     const ai = getAI();
-    const model = 'gemini-2.5-flash';
+    if (!ai) return "API anahtarı eksik. Lütfen ayarlardan kontrol edin.";
+
+    // DÜZELTME: Model ismi 1.5-flash yapıldı
+    const model = ai.getGenerativeModel({ 
+        model: 'gemini-1.5-flash',
+        generationConfig: {
+            temperature: 0.7,
+        }
+    });
     
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: `You are an expert fitness coach named "Coach Gemini". You are helpful, motivating, and concise.
+    // DÜZELTME: Doğru SDK metod yapısı
+    const result = await model.generateContent(`
+      You are an expert fitness coach named "Coach Gemini". You are helpful, motivating, and concise.
       The user speaks Turkish. Respond in Turkish.
       
       Instructions for Exercise Questions:
@@ -36,35 +49,47 @@ export const askCoach = async (question: string, context: string): Promise<strin
       Context about user's routine:
       ${context}
       
-      User Question: ${question}`,
-      config: {
-        temperature: 0.7,
-      }
-    });
+      User Question: ${question}
+    `);
 
-    return response.text || "Üzgünüm, şu an cevap veremiyorum.";
+    const response = await result.response;
+    const text = response.text();
+
+    // DÜZELTME: Eksik olan || işareti eklendi
+    return text || "Üzgünüm, şu an cevap veremiyorum.";
+
   } catch (error) {
     console.error("AI Error:", error);
-    return "Bağlantı hatası oluştu. API anahtarı eksik olabilir.";
+    return "Bağlantı hatası oluştu. Lütfen internetinizi kontrol edin.";
   }
 };
 
-export const getWorkoutAnalysis = async (recentLogs: WorkoutLog[], program: WorkoutDay[]): Promise<string> => {
+// Not: WorkoutLog ve WorkoutDay tipleri kendi projende tanımlı olduğu varsayılmıştır.
+// Hata alırsan 'any[]' olarak değiştirebilirsin.
+export const getWorkoutAnalysis = async (recentLogs: any[], program: any[]): Promise<string> => {
   try {
     const ai = getAI();
-    const model = 'gemini-2.5-flash';
+    if (!ai) return "API anahtarı eksik.";
+
+    // DÜZELTME: Model ismi 1.5-flash yapıldı
+    const model = ai.getGenerativeModel({ 
+        model: 'gemini-1.5-flash',
+        generationConfig: {
+            temperature: 0.7,
+        }
+    });
     
-    // Simplify logs for the prompt to save tokens
+    // Logları özetle (Token tasarrufu için)
     const logsSummary = recentLogs.map(log => ({
       date: log.date,
       day: log.dayId,
       duration: log.duration,
-      exercises: Object.entries(log.exercises).map(([id, sets]) => {
-        const completedSets = sets.filter(s => s.completed);
+      exercises: log.exercises ? Object.entries(log.exercises).map(([id, sets]: [string, any]) => {
+        const completedSets = sets.filter((s: any) => s.completed);
         if (completedSets.length === 0) return null;
-        const maxWeight = Math.max(...completedSets.map(s => s.weight));
-        return `${id}: ${completedSets.length} sets (max ${maxWeight}kg)`;
-      }).filter(Boolean)
+        const maxWeight = Math.max(...completedSets.map((s: any) => s.weight));
+        return ${id}: ${completedSets.length} sets (max ${maxWeight}kg);
+      }).filter(Boolean) : []
     }));
 
     const prompt = `
@@ -83,17 +108,18 @@ export const getWorkoutAnalysis = async (recentLogs: WorkoutLog[], program: Work
       Format: Plain text with bullet points.
     `;
 
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: prompt,
-      config: {
-        temperature: 0.7,
-      }
-    });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
 
-    return response.text || "Şu an analiz yapılamıyor.";
+    // DÜZELTME: Eksik olan || işareti eklendi
+    return text || "Şu an analiz yapılamıyor.";
+
   } catch (error) {
-    console.error("Analysis Error:", error);
+    console.
+
+halil ibrahim, [25.11.2025 02:03]
+error("Analysis Error:", error);
     return "Analiz servisi şu an kullanılamıyor.";
   }
 };
