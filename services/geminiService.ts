@@ -1,44 +1,45 @@
-'use server'; // <--- BU SATIR EKSİK OLDUĞU İÇİN ÇALIŞMIYOR OLABİLİR
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
+import { WorkoutLog, WorkoutDay } from "../types";
+import { AnatomyInfo } from "../constants";
 
-// Yardımcı fonksiyon: API anahtarını güvenli bir şekilde çeker
+// Helper to safely get API key from Env or LocalStorage
 const getAI = () => {
   let apiKey = '';
-  try {
-    // Vercel veya lokal ortam değişkenini kontrol et
-    if (process.env.API_KEY) {
-      apiKey = process.env.API_KEY;
+
+  // 1. Check Local Storage (User entered via UI) - PRIORITY 1
+  // This allows the user to override any broken/dummy env key
+  if (typeof window !== 'undefined') {
+    try {
+        apiKey = localStorage.getItem('gemini_api_key') || '';
+    } catch (e) {
+        console.warn("Local storage access failed for API key");
     }
-  } catch (e) {
-    console.error("Ortam değişkenlerine erişilemedi.");
   }
   
-  // Eğer anahtar yoksa null döndür, uygulamayı çökertme
+  // 2. Check Process Env (Fallback) - PRIORITY 2
   if (!apiKey) {
-      console.warn("API Key bulunamadı! Vercel ayarlarında 'API_KEY' tanımladığından emin ol.");
-      return null;
+      try {
+        if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+          apiKey = process.env.API_KEY;
+        }
+      } catch (e) {
+        // Ignore error
+      }
   }
-
-  return new GoogleGenerativeAI(apiKey);
+  
+  // Initialize with provided key or a dummy one to prevent constructor error if key is missing
+  return new GoogleGenAI({ apiKey: apiKey || 'MISSING_KEY' });
 };
 
 export const askCoach = async (question: string, context: string): Promise<string> => {
   try {
     const ai = getAI();
-    if (!ai) return "API anahtarı eksik. Lütfen ayarlardan kontrol edin.";
-
-    // DÜZELTME: Model ismi 1.5-flash yapıldı
-    const model = ai.getGenerativeModel({ 
-        model: 'gemini-1.5-flash',
-        generationConfig: {
-            temperature: 0.7,
-        }
-    });
+    const model = 'gemini-2.5-flash';
     
-    // DÜZELTME: Doğru SDK metod yapısı
-    const result = await model.generateContent(`
-      You are an expert fitness coach named "Coach Gemini". You are helpful, motivating, and concise.
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: `You are an expert fitness coach named "Coach Gemini". You are helpful, motivating, and concise.
       The user speaks Turkish. Respond in Turkish.
       
       Instructions for Exercise Questions:
@@ -50,47 +51,38 @@ export const askCoach = async (question: string, context: string): Promise<strin
       Context about user's routine:
       ${context}
       
-      User Question: ${question}
-    `);
+      User Question: ${question}`,
+      config: {
+        temperature: 0.7,
+      }
+    });
 
-    const response = await result.response;
-    const text = response.text();
-
-    // DÜZELTME: Eksik olan || işareti eklendi
-    return text || "Üzgünüm, şu an cevap veremiyorum.";
-
-  } catch (error) {
+    return response.text || "Üzgünüm, şu an cevap veremiyorum.";
+  } catch (error: any) {
     console.error("AI Error:", error);
-    return "Bağlantı hatası oluştu. Lütfen internetinizi kontrol edin.";
+    if (error.message?.includes('API key')) {
+        return "API Anahtarı hatası. Lütfen Ayarlar (Çark Simgesi) kısmından geçerli bir anahtar girin.";
+    }
+    return "Bağlantı hatası oluştu. Lütfen tekrar deneyin.";
   }
 };
 
-// Not: WorkoutLog ve WorkoutDay tipleri kendi projende tanımlı olduğu varsayılmıştır.
-// Hata alırsan 'any[]' olarak değiştirebilirsin.
-export const getWorkoutAnalysis = async (recentLogs: any[], program: any[]): Promise<string> => {
+export const getWorkoutAnalysis = async (recentLogs: WorkoutLog[], program: WorkoutDay[]): Promise<string> => {
   try {
     const ai = getAI();
-    if (!ai) return "API anahtarı eksik.";
-
-    // DÜZELTME: Model ismi 1.5-flash yapıldı
-    const model = ai.getGenerativeModel({ 
-        model: 'gemini-1.5-flash',
-        generationConfig: {
-            temperature: 0.7,
-        }
-    });
+    const model = 'gemini-2.5-flash';
     
-    // Logları özetle (Token tasarrufu için)
+    // Simplify logs for the prompt to save tokens
     const logsSummary = recentLogs.map(log => ({
       date: log.date,
       day: log.dayId,
       duration: log.duration,
-      exercises: log.exercises ? Object.entries(log.exercises).map(([id, sets]: [string, any]) => {
-        const completedSets = sets.filter((s: any) => s.completed);
+      exercises: Object.entries(log.exercises).map(([id, sets]) => {
+        const completedSets = sets.filter(s => s.completed);
         if (completedSets.length === 0) return null;
-        const maxWeight = Math.max(...completedSets.map((s: any) => s.weight));
-        return ${id}: ${completedSets.length} sets (max ${maxWeight}kg);
-      }).filter(Boolean) : []
+        const maxWeight = Math.max(...completedSets.map(s => s.weight));
+        return `${id}: ${completedSets.length} sets (max ${maxWeight}kg)`;
+      }).filter(Boolean)
     }));
 
     const prompt = `
@@ -109,18 +101,56 @@ export const getWorkoutAnalysis = async (recentLogs: any[], program: any[]): Pro
       Format: Plain text with bullet points.
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: prompt,
+      config: {
+        temperature: 0.7,
+      }
+    });
 
-    // DÜZELTME: Eksik olan || işareti eklendi
-    return text || "Şu an analiz yapılamıyor.";
-
+    return response.text || "Şu an analiz yapılamıyor.";
   } catch (error) {
-    console.
+    console.error("Analysis Error:", error);
+    return "Analiz servisi şu an kullanılamıyor. API anahtarınızı kontrol edin.";
+  }
+};
 
-halil ibrahim, [25.11.2025 02:03]
-error("Analysis Error:", error);
-    return "Analiz servisi şu an kullanılamıyor.";
+export const generateAnatomyImage = async (info: AnatomyInfo): Promise<string | null> => {
+  try {
+    const ai = getAI();
+    const model = 'gemini-2.5-flash-image'; 
+
+    const prompt = JSON.stringify({
+      fixed_prompt_components: {
+        composition: "Wide angle full body shot, the entire figure is visible from head to toe, far shot, vertical portrait framing, centered and symmetrical stance",
+        background: "Isolated on a seamless pure black background, dark studio backdrop, clean dark environment",
+        art_style: "Photorealistic 3D medical render, ZBrush digital sculpture style, scientific anatomy model aesthetics",
+        texture_and_material: "Monochromatic silver-grey skin with brushed metal texture, micro-surface details, highly detailed muscle striation, matte finish, semi-transparent X-Ray skin",
+        lighting_and_tech: "Cinematic rim lighting, global illumination, raytracing, ambient occlusion, 8k resolution, UHD, sharp focus, hyper-detailed"
+      },
+      variables: info.variables,
+      negative_prompt: "text, infographic, chart, diagram, labels, arrows, UI, cropped image, close-up, macro shot, headshot, cut off feet, cut off head, partial body, grey background, gradient background, shadows on floor, blurry, low resolution, distortion, watermark"
+    });
+
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: {
+        parts: [{ text: `Generate an image based on this JSON description: ${prompt}` }]
+      }
+    });
+
+    if (response.candidates && response.candidates[0]?.content?.parts) {
+       for (const part of response.candidates[0].content.parts) {
+         if (part.inlineData) {
+           return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+         }
+       }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Image Gen Error:", error);
+    return null;
   }
 };

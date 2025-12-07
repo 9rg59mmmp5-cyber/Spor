@@ -1,8 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
-import { Plus, Check, RotateCcw, History, FileText, Trash2, ChevronDown, Dumbbell, AlertCircle, Activity, TrendingUp } from 'lucide-react';
+import { Plus, Check, Trash2, ChevronDown, Dumbbell, AlertCircle, TrendingUp, FileText, Dna, Loader2, X } from 'lucide-react';
 import { ExerciseData, ExerciseSet } from '../types';
 import { playSuccessSound, triggerHaptic } from '../utils/audio';
 import { ExerciseProgressChart } from './ExerciseProgressChart';
+import { EXERCISE_ANATOMY } from '../constants';
+import { generateAnatomyImage } from '../services/geminiService';
 
 interface Props {
   exercise: ExerciseData;
@@ -16,6 +19,9 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
   const [isExpanded, setIsExpanded] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showChart, setShowChart] = useState(false);
+  const [showAnatomy, setShowAnatomy] = useState(false);
+  const [anatomyImage, setAnatomyImage] = useState<string | null>(null);
+  const [loadingAnatomy, setLoadingAnatomy] = useState(false);
   const [note, setNote] = useState('');
   const [warningSetIndex, setWarningSetIndex] = useState<number | null>(null);
 
@@ -92,6 +98,47 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
     onUpdate(exercise.id, newSets);
   };
 
+  const handleShowAnatomy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowAnatomy(!showAnatomy);
+    setShowChart(false);
+    setShowNotes(false);
+
+    // If opening and we don't have an image in state
+    if (!showAnatomy && !anatomyImage) {
+        const cacheKey = `anatomy_img_v3_${exercise.id}`; // Updated key for new format
+        
+        // 1. Check Local Storage (System Cache)
+        try {
+            const cachedImg = localStorage.getItem(cacheKey);
+            if (cachedImg) {
+                setAnatomyImage(cachedImg);
+                return;
+            }
+        } catch (e) {
+            console.warn("Storage access failed");
+        }
+
+        // 2. If not cached, generate new
+        const info = EXERCISE_ANATOMY[exercise.id];
+        if (info) {
+            setLoadingAnatomy(true);
+            const img = await generateAnatomyImage(info);
+            
+            if (img) {
+                setAnatomyImage(img);
+                // 3. Save to System (Local Storage)
+                try {
+                    localStorage.setItem(cacheKey, img);
+                } catch (e) {
+                    console.warn("Could not cache image (likely quota exceeded)");
+                }
+            }
+            setLoadingAnatomy(false);
+        }
+    }
+  };
+
   const totalVolume = sets.reduce((acc, set) => acc + (set.completed ? (set.weight * set.reps) : 0), 0);
   const completedSetsCount = sets.filter(s => s.completed).length;
 
@@ -124,20 +171,23 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-950 border border-slate-800 px-2 py-1 rounded-md flex items-center gap-1">
                     <Dumbbell size={10} /> {exercise.targetWeight}
                 </span>
-                {exercise.lastLog && !isExpanded && (
-                     <span className="text-[10px] text-primary/80 font-mono bg-primary/5 border border-primary/10 px-2 py-1 rounded-md flex items-center gap-1">
-                         <History size={10} /> {exercise.lastLog}
-                     </span>
-                )}
             </div>
         </div>
 
         <div className="flex items-center gap-2 pl-2">
              <button 
+                onClick={handleShowAnatomy}
+                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 ${showAnatomy ? 'bg-primary text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}`}
+                title="Anatomi"
+             >
+                <Dna size={16} />
+             </button>
+             <button 
                 onClick={(e) => {
                     e.stopPropagation();
                     setShowChart(!showChart);
                     setShowNotes(false);
+                    setShowAnatomy(false);
                 }}
                 className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 ${showChart ? 'bg-primary text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}`}
              >
@@ -148,6 +198,7 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
                     e.stopPropagation();
                     setShowNotes(!showNotes);
                     setShowChart(false);
+                    setShowAnatomy(false);
                 }}
                 className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 ${showNotes ? 'bg-primary text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}`}
              >
@@ -163,6 +214,38 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
       {isExpanded && (
         <div className="px-4 pb-5 animate-in slide-in-from-top-4 duration-300 bg-slate-900">
             
+            {showAnatomy && (
+                 <div className="mb-6 bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-inner animate-in zoom-in-95 duration-200 relative min-h-[200px] flex items-center justify-center">
+                    <button 
+                        onClick={() => setShowAnatomy(false)}
+                        className="absolute top-2 right-2 p-1 bg-black/50 rounded-full text-white/70 hover:text-white z-10"
+                    >
+                        <X size={16} />
+                    </button>
+                    {loadingAnatomy ? (
+                        <div className="flex flex-col items-center gap-3 text-slate-400">
+                            <Loader2 className="animate-spin text-primary" size={32} />
+                            <p className="text-xs font-mono">3D X-Ray Anatomi Oluşturuluyor...</p>
+                        </div>
+                    ) : anatomyImage ? (
+                        <div className="relative w-full rounded-xl overflow-hidden group/img">
+                            <img src={anatomyImage} alt="Anatomy" className="w-full h-auto object-cover rounded-xl" />
+                            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 to-transparent text-white text-xs font-mono opacity-0 group-hover/img:opacity-100 transition-opacity">
+                                Hedef Kas: {EXERCISE_ANATOMY[exercise.id]?.variables?.target_muscle_group || 'Bilinmiyor'}
+                            </div>
+                            <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 backdrop-blur rounded text-[10px] text-emerald-400 border border-emerald-500/30">
+                                SİSTEME KAYDEDİLDİ
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center text-slate-500">
+                            <p>Görsel oluşturulamadı.</p>
+                            <p className="text-[10px] mt-1">API anahtarınızı kontrol edin.</p>
+                        </div>
+                    )}
+                 </div>
+            )}
+
             {showChart && (
                 <div className="mb-6 bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-inner animate-in zoom-in-95 duration-200">
                     <ExerciseProgressChart exerciseId={exercise.id} exerciseName={exercise.name} />
