@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, User, Settings, Trophy, Clock } from 'lucide-react';
+import { Calendar as CalendarIcon, User, Settings, Trophy, Clock, Key, Eye, EyeOff, Save, Check } from 'lucide-react';
 import { getWorkoutLogs, getUserSettings, saveUserSettings } from '../services/storageService';
 import { UserSettings } from '../types';
 
@@ -8,6 +7,11 @@ export const ProfileView: React.FC = () => {
   const [settings, setSettings] = useState<UserSettings>({});
   const [workoutDates, setWorkoutDates] = useState<Set<string>>(new Set());
   const [editMode, setEditMode] = useState(false);
+  
+  // API Key State
+  const [apiKey, setApiKey] = useState('');
+  const [showKey, setShowKey] = useState(false);
+  const [isKeySaved, setIsKeySaved] = useState(false);
 
   useEffect(() => {
     const userSettings = getUserSettings();
@@ -16,11 +20,27 @@ export const ProfileView: React.FC = () => {
     const logs = getWorkoutLogs();
     const dates = new Set(logs.map(l => l.date));
     setWorkoutDates(dates);
+    
+    // Load Key
+    const savedKey = localStorage.getItem('gemini_api_key');
+    if (savedKey) {
+        setApiKey(savedKey);
+    }
   }, []);
 
   const handleSaveSettings = () => {
     saveUserSettings(settings);
     setEditMode(false);
+  };
+  
+  const handleSaveKey = () => {
+      if(apiKey.trim().length > 0) {
+          localStorage.setItem('gemini_api_key', apiKey.trim());
+          setIsKeySaved(true);
+          setTimeout(() => setIsKeySaved(false), 2000);
+      } else {
+          localStorage.removeItem('gemini_api_key');
+      }
   };
 
   const renderCalendar = () => {
@@ -120,6 +140,46 @@ export const ProfileView: React.FC = () => {
         <div className="grid grid-cols-7 gap-1">
           {renderCalendar()}
         </div>
+      </div>
+      
+      {/* API Key Management */}
+      <div className="bg-card rounded-2xl p-5 border border-slate-700/50 shadow-lg">
+         <div className="flex items-center gap-2 mb-4">
+             <div className="bg-zinc-800 p-1.5 rounded-lg">
+                 <Key size={16} className="text-white" />
+             </div>
+             <div>
+                <h3 className="text-white font-bold text-sm">Gemini API Anahtarı</h3>
+                <p className="text-[10px] text-zinc-500">AI analiz özellikleri için gereklidir.</p>
+             </div>
+         </div>
+         
+         <div className="relative">
+             <input 
+                type={showKey ? "text" : "password"} 
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="AI Studio API Key"
+                className="w-full bg-zinc-900 border border-zinc-700 text-white text-sm rounded-xl py-3 pl-3 pr-20 focus:outline-none focus:border-primary transition-colors font-mono"
+             />
+             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                 <button 
+                    onClick={() => setShowKey(!showKey)}
+                    className="p-1.5 text-zinc-500 hover:text-white transition-colors"
+                 >
+                     {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                 </button>
+                 <button 
+                    onClick={handleSaveKey}
+                    className={`p-1.5 rounded-lg transition-all ${isKeySaved ? 'bg-emerald-500 text-black' : 'bg-primary text-white hover:bg-blue-600'}`}
+                 >
+                     {isKeySaved ? <Check size={16} /> : <Save size={16} />}
+                 </button>
+             </div>
+         </div>
+         <p className="text-[10px] text-zinc-600 mt-2">
+             Anahtarınız sadece tarayıcınızda saklanır. Google AI Studio'dan ücretsiz alabilirsiniz.
+         </p>
       </div>
 
       {/* Membership Settings */}

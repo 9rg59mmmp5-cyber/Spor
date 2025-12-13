@@ -1,7 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { WorkoutLog, WorkoutDay } from "../types";
-import { AnatomyInfo } from "../constants";
 
 // Helper to safely get API key from Env or LocalStorage
 const getAI = () => {
@@ -113,44 +112,5 @@ export const getWorkoutAnalysis = async (recentLogs: WorkoutLog[], program: Work
   } catch (error) {
     console.error("Analysis Error:", error);
     return "Analiz servisi şu an kullanılamıyor. API anahtarınızı kontrol edin.";
-  }
-};
-
-export const generateAnatomyImage = async (info: AnatomyInfo): Promise<string | null> => {
-  try {
-    const ai = getAI();
-    const model = 'gemini-2.5-flash-image'; 
-
-    const prompt = JSON.stringify({
-      fixed_prompt_components: {
-        composition: "Wide angle full body shot, the entire figure is visible from head to toe, far shot, vertical portrait framing, centered and symmetrical stance",
-        background: "Isolated on a seamless pure black background, dark studio backdrop, clean dark environment",
-        art_style: "Photorealistic 3D medical render, ZBrush digital sculpture style, scientific anatomy model aesthetics",
-        texture_and_material: "Monochromatic silver-grey skin with brushed metal texture, micro-surface details, highly detailed muscle striation, matte finish, semi-transparent X-Ray skin",
-        lighting_and_tech: "Cinematic rim lighting, global illumination, raytracing, ambient occlusion, 8k resolution, UHD, sharp focus, hyper-detailed"
-      },
-      variables: info.variables,
-      negative_prompt: "text, infographic, chart, diagram, labels, arrows, UI, cropped image, close-up, macro shot, headshot, cut off feet, cut off head, partial body, grey background, gradient background, shadows on floor, blurry, low resolution, distortion, watermark"
-    });
-
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: {
-        parts: [{ text: `Generate an image based on this JSON description: ${prompt}` }]
-      }
-    });
-
-    if (response.candidates && response.candidates[0]?.content?.parts) {
-       for (const part of response.candidates[0].content.parts) {
-         if (part.inlineData) {
-           return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-         }
-       }
-    }
-    
-    return null;
-  } catch (error) {
-    console.error("Image Gen Error:", error);
-    return null;
   }
 };

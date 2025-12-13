@@ -26,6 +26,9 @@ export interface WorkoutLog {
   startTime?: number; // Timestamp in milliseconds
   endTime?: number; // Timestamp in milliseconds
   duration?: number; // Duration in seconds
+  totalVolume?: number; // Total weight lifted in kg
+  totalSets?: number; // Total completed sets
+  prs?: string[]; // Array of exercise IDs where a PR was set
   exercises: {
     [exerciseId: string]: ExerciseSet[];
   };

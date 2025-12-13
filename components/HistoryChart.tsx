@@ -1,88 +1,144 @@
-
-import React from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import React, { useMemo } from 'react';
 import { getWorkoutLogs } from '../services/storageService';
-import { WEEKLY_PROGRAM } from '../constants';
 import { ExerciseSet } from '../types';
+import { Trophy, TrendingUp, Target, ArrowUp, Lock } from 'lucide-react';
+
+const TRACKED_EXERCISES = [
+  { id: 'bp', name: 'Bench Press', short: 'Bench', milestoneStep: 20 }, // 60, 80, 100
+  { id: 'sq', name: 'Squat', short: 'Squat', milestoneStep: 20 },
+  { id: 'dl', name: 'Deadlift', short: 'Deadlift', milestoneStep: 20 },
+  { id: 'ohp', name: 'Overhead Press', short: 'OHP', milestoneStep: 10 }
+];
 
 export const HistoryChart: React.FC = () => {
   const logs = getWorkoutLogs();
 
-  const data = logs
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(-7)
-    .map(log => {
-      let volume = 0;
-      const exercises = log.exercises;
-      const exerciseSetsList = Object.values(exercises) as ExerciseSet[][];
+  const stats = useMemo(() => {
+    return TRACKED_EXERCISES.map(ex => {
+      // Get all logs for this exercise
+      const exerciseLogs = logs
+        .filter(log => log.exercises && log.exercises[ex.id])
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       
-      exerciseSetsList.forEach(sets => {
-        sets.forEach(set => {
-          if (set.completed) {
-             volume += (set.weight || 0) * (set.reps || 0);
-          }
+      let currentMax = 0;
+      let lastWeekMax = 0;
+      let totalSets = 0;
+
+      if (exerciseLogs.length > 0) {
+        // Current Max (Last Session)
+        const lastSession = exerciseLogs[exerciseLogs.length - 1];
+        const lastSets = lastSession.exercises[ex.id] as ExerciseSet[];
+        const validSets = lastSets.filter(s => s.completed && s.weight > 0);
+        if (validSets.length > 0) {
+           currentMax = Math.max(...validSets.map(s => s.weight));
+        }
+
+        // Previous Max (Session before last)
+        if (exerciseLogs.length > 1) {
+             const prevSession = exerciseLogs[exerciseLogs.length - 2];
+             const prevSets = prevSession.exercises[ex.id] as ExerciseSet[];
+             const validPrevSets = prevSets.filter(s => s.completed && s.weight > 0);
+             if (validPrevSets.length > 0) {
+                 lastWeekMax = Math.max(...validPrevSets.map(s => s.weight));
+             }
+        }
+        
+        // Total Sets All Time
+        exerciseLogs.forEach(l => {
+             const s = l.exercises[ex.id] as ExerciseSet[];
+             totalSets += s.filter(x => x.completed).length;
         });
-      });
-      
-      const dayName = WEEKLY_PROGRAM.find(d => d.id === log.dayId)?.name.substring(0,3) || log.dayId;
-      
+      }
+
+      // Progression Logic
+      const nextTarget = currentMax > 0 ? currentMax + 2.5 : 20; // Default start 20kg
+      const nextMilestone = (Math.floor(currentMax / ex.milestoneStep) + 1) * ex.milestoneStep;
+      const progressPercent = currentMax > 0 
+        ? Math.min(100, Math.max(5, ((currentMax - (nextMilestone - ex.milestoneStep)) / ex.milestoneStep) * 100))
+        : 0;
+
       return {
-        name: `${dayName} ${new Date(log.date).getDate()}`,
-        volume: Math.round(volume / 1000)
+        ...ex,
+        currentMax,
+        lastWeekMax,
+        nextTarget,
+        nextMilestone,
+        progressPercent,
+        totalSets,
+        hasData: exerciseLogs.length > 0
       };
     });
-
-  if (data.length === 0) {
-    return (
-      <div className="h-48 flex flex-col items-center justify-center text-slate-500">
-        <p className="text-sm">Henüz veri yok.</p>
-      </div>
-    );
-  }
+  }, [logs]);
 
   return (
-    <div className="h-52 w-full bg-slate-900/50 pt-4 pr-2">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-          <defs>
-            <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.5}/>
-              <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-          <XAxis 
-            dataKey="name" 
-            stroke="#475569" 
-            fontSize={10} 
-            tick={{dy: 10}} 
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis 
-            stroke="#475569" 
-            fontSize={10} 
-            axisLine={false}
-            tickLine={false}
-          />
-          <Tooltip 
-            contentStyle={{ backgroundColor: '#020617', borderColor: '#1e293b', borderRadius: '8px', color: '#fff', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' }} 
-            itemStyle={{ color: '#38bdf8', fontWeight: 'bold' }}
-            formatter={(value: number) => [`${value} Ton`, '']}
-            labelStyle={{ color: '#94a3b8', fontSize: '10px', marginBottom: '2px' }}
-            cursor={{ stroke: '#38bdf8', strokeWidth: 1, strokeDasharray: '4 4' }}
-          />
-          <Area 
-            type="monotone" 
-            dataKey="volume" 
-            stroke="#0ea5e9" 
-            strokeWidth={3} 
-            fillOpacity={1} 
-            fill="url(#colorVolume)" 
-            activeDot={{ r: 6, strokeWidth: 3, stroke: '#fff', fill: '#0ea5e9' }}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
+    <div className="space-y-4">
+      {stats.map((stat) => (
+        <div key={stat.id} className="relative overflow-hidden bg-black rounded-3xl border border-zinc-800 p-5 group">
+             {/* Background Gradient */}
+             <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-800/20 blur-3xl rounded-full -mr-10 -mt-10 group-hover:bg-primary/10 transition-colors duration-500"></div>
+
+             <div className="relative z-10">
+                {/* Header */}
+                <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2.5 rounded-xl ${stat.hasData ? 'bg-zinc-900 text-white' : 'bg-zinc-900/50 text-zinc-600'}`}>
+                            <Trophy size={20} className={stat.hasData ? 'text-yellow-500' : 'opacity-20'} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-white leading-none">{stat.name}</h3>
+                            <p className="text-xs text-zinc-500 mt-1">{stat.totalSets} Set tamamlandı</p>
+                        </div>
+                    </div>
+                    {stat.hasData && stat.currentMax > stat.lastWeekMax && (
+                        <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-500 px-2 py-1 rounded-lg">
+                            <TrendingUp size={14} />
+                            <span className="text-xs font-bold">+{stat.currentMax - stat.lastWeekMax}kg</span>
+                        </div>
+                    )}
+                </div>
+
+                {stat.hasData ? (
+                    <>
+                        {/* Main Numbers */}
+                        <div className="flex items-end gap-1 mb-4">
+                             <div className="flex-1">
+                                <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-1">Şu Anki Max</p>
+                                <p className="text-3xl font-bold text-white">{stat.currentMax} <span className="text-sm font-medium text-zinc-600">kg</span></p>
+                             </div>
+                             <div className="flex-1 border-l border-zinc-800 pl-4">
+                                <p className="text-[10px] uppercase font-bold text-emerald-500 tracking-wider mb-1 flex items-center gap-1">
+                                    <Target size={10} /> Sıradaki Hedef
+                                </p>
+                                <p className="text-3xl font-bold text-emerald-500">{stat.nextTarget} <span className="text-sm font-medium text-emerald-500/50">kg</span></p>
+                             </div>
+                        </div>
+
+                        {/* Milestone Progress Bar */}
+                        <div className="mt-4">
+                            <div className="flex justify-between text-xs font-bold text-zinc-500 mb-2">
+                                <span>İlerleme</span>
+                                <span className="text-white">{stat.nextMilestone} kg Kilidi</span>
+                            </div>
+                            <div className="h-3 w-full bg-zinc-900 rounded-full overflow-hidden border border-zinc-800/50 relative">
+                                <div 
+                                    className="h-full bg-gradient-to-r from-blue-600 to-primary rounded-full transition-all duration-1000"
+                                    style={{ width: `${stat.progressPercent}%` }}
+                                ></div>
+                            </div>
+                            <p className="text-[10px] text-zinc-600 mt-1.5 text-right">
+                                {stat.nextMilestone} kg hedefine %{Math.round(stat.progressPercent)} yaklaştın
+                            </p>
+                        </div>
+                    </>
+                ) : (
+                    <div className="py-4 flex flex-col items-center justify-center text-zinc-600 gap-2 border border-dashed border-zinc-800 rounded-xl bg-zinc-900/20">
+                         <Lock size={18} />
+                         <span className="text-xs">Veri yok. Antrenman yapınca açılacak.</span>
+                    </div>
+                )}
+             </div>
+        </div>
+      ))}
     </div>
   );
 };
