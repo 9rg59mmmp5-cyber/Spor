@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="tr">
   <head>
@@ -18,13 +19,16 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+      // Tarayıcıda process.env hatalarını önlemek için
+      window.process = { env: { API_KEY: '' } };
+      
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              primary: '#0A84FF', // iOS Dark Mode System Blue
+              primary: '#0A84FF',
               background: '#000000',
-              surface: '#1C1C1E', // iOS Dark Mode Secondary System Grouped Background
+              surface: '#1C1C1E',
               separator: '#38383A',
               text: '#FFFFFF',
               subtext: '#8E8E93',
@@ -51,31 +55,13 @@
         background-color: #000000;
         color: #FFFFFF;
         -webkit-tap-highlight-color: transparent;
-        overscroll-behavior-y: none; /* Prevent elastic bounce on body */
+        overscroll-behavior-y: none;
       }
-      
-      /* Hide scrollbar but allow scrolling */
-      .no-scrollbar::-webkit-scrollbar {
-          display: none;
-      }
-      .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-      }
-
-      /* iOS Safe Area Utilities */
-      .pb-safe {
-        padding-bottom: env(safe-area-inset-bottom);
-      }
-      .pt-safe {
-        padding-top: env(safe-area-inset-top);
-      }
-      
-      /* Blur Utilities */
-      .backdrop-blur-xl {
-        -webkit-backdrop-filter: blur(24px);
-        backdrop-filter: blur(24px);
-      }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+      .pt-safe { padding-top: env(safe-area-inset-top); }
+      .backdrop-blur-xl { -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); }
     </style>
   <script type="importmap">
 {
@@ -85,7 +71,10 @@
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
@@ -93,6 +82,8 @@
 </head>
   <body>
     <div id="root"></div>
+    <!-- Ana uygulama dosyasını çağıran kritik satır -->
+    <script type="module" src="index.tsx"></script>
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>
