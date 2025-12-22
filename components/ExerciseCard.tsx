@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Plus, Check, Trash2, ChevronDown, Dumbbell, AlertCircle, TrendingUp, FileText } from 'lucide-react';
+import { Plus, Check, Trash2, ChevronDown, Dumbbell, AlertCircle, TrendingUp } from 'lucide-react';
 import { ExerciseData, ExerciseSet } from '../types';
 import { playSuccessSound, triggerHaptic } from '../utils/audio';
 import { ExerciseProgressChart } from './ExerciseProgressChart';
@@ -8,15 +9,13 @@ interface Props {
   exercise: ExerciseData;
   initialLogs: ExerciseSet[];
   onUpdate: (exerciseId: string, logs: ExerciseSet[]) => void;
-  onSetComplete: () => void;
+  onSetComplete: (isExerciseFinished: boolean) => void;
 }
 
 export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate, onSetComplete }) => {
   const [sets, setSets] = useState<ExerciseSet[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
   const [showChart, setShowChart] = useState(false);
-  const [note, setNote] = useState('');
   const [warningSetIndex, setWarningSetIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -74,7 +73,11 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
     if (isCompleting) {
         playSuccessSound();
         triggerHaptic(50);
-        onSetComplete();
+        
+        // Bu hareketin tüm setleri bitti mi kontrol et
+        const allFinished = newSets.every(s => s.completed);
+        onSetComplete(allFinished);
+        
         setWarningSetIndex(null);
     }
   };
@@ -95,17 +98,11 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
   const toggleChart = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowChart(!showChart);
-    setShowNotes(false);
   };
 
-  const toggleNotes = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowNotes(!showNotes);
-    setShowChart(false);
-  };
-
-  const totalVolume = sets.reduce((acc, set) => acc + (set.completed ? (set.weight * set.reps) : 0), 0);
   const completedSetsCount = sets.filter(s => s.completed).length;
+  // Calculate total volume for the exercise
+  const totalVolume = sets.reduce((acc, s) => s.completed ? acc + (s.weight * s.reps) : acc, 0);
 
   return (
     <div className={`rounded-3xl border transition-all duration-500 overflow-hidden group ${isExpanded ? 'bg-black border-zinc-700 shadow-2xl' : 'bg-black border-zinc-800 shadow-lg'}`}>
@@ -146,12 +143,6 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
              >
                 <TrendingUp size={16} />
              </button>
-             <button 
-                onClick={toggleNotes}
-                className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 ${showNotes ? 'bg-primary text-white' : 'bg-zinc-900 text-zinc-500 hover:bg-zinc-800 hover:text-white'}`}
-             >
-                <FileText size={16} />
-             </button>
              <div className={`w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-900 text-zinc-500 transition-transform duration-300 ${isExpanded ? 'rotate-180 bg-zinc-800 text-white' : ''}`}>
                 <ChevronDown size={18} />
              </div>
@@ -165,18 +156,6 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
             {showChart && (
                 <div className="mb-6 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800 animate-in zoom-in-95 duration-200">
                     <ExerciseProgressChart exerciseId={exercise.id} exerciseName={exercise.name} />
-                </div>
-            )}
-
-            {showNotes && (
-                <div className="mb-6 bg-zinc-900/50 p-4 rounded-2xl border border-zinc-800 animate-in zoom-in-95 duration-200">
-                    <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Kişisel Notlar</label>
-                    <textarea 
-                        value={note}
-                        onChange={(e) => setNote(e.target.value)}
-                        placeholder="Bu hareket için form notları, koltuk ayarı vb..."
-                        className="w-full bg-black text-white text-sm rounded-xl p-3 focus:outline-none focus:ring-1 focus:ring-primary border border-zinc-800 resize-none h-24 placeholder:text-zinc-600"
-                    />
                 </div>
             )}
 

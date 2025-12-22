@@ -2,16 +2,16 @@
 export interface ExerciseSet {
   reps: number;
   weight: number;
-  rpe?: number; // Rate of Perceived Exertion (1-10)
+  rpe?: number;
   completed: boolean;
 }
 
 export interface ExerciseData {
   id: string;
   name: string;
-  targetSets: string; // e.g. "5x5-8"
-  targetWeight: string; // e.g. "75"
-  lastLog: string; // e.g. "8-7-7-8-10"
+  targetSets: string;
+  targetWeight: string;
+  lastLog?: string;
 }
 
 export interface WorkoutDay {
@@ -23,26 +23,27 @@ export interface WorkoutDay {
 export interface WorkoutLog {
   date: string;
   dayId: string;
-  startTime?: number; // Timestamp in milliseconds
-  endTime?: number; // Timestamp in milliseconds
-  duration?: number; // Duration in seconds
-  totalVolume?: number; // Total weight lifted in kg
-  totalSets?: number; // Total completed sets
-  prs?: string[]; // Array of exercise IDs where a PR was set
+  startTime?: number;
+  endTime?: number;
+  duration?: number;
+  totalVolume?: number;
+  totalSets?: number;
+  prs?: string[];
   exercises: {
     [exerciseId: string]: ExerciseSet[];
   };
 }
 
 export interface UserSettings {
-  membershipEndDate?: string; // ISO Date string YYYY-MM-DD
+  membershipEndDate?: string;
   membershipStartDate?: string;
+  restBetweenSets?: number; // Saniye cinsinden
+  restBetweenExercises?: number; // Saniye cinsinden
 }
 
 export enum AppView {
   DASHBOARD = 'DASHBOARD',
   WORKOUT = 'WORKOUT',
   HISTORY = 'HISTORY',
-  AI_COACH = 'AI_COACH',
   PROFILE = 'PROFILE',
 }

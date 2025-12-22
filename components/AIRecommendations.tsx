@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import { Sparkles, Loader2, RefreshCcw, Lightbulb } from 'lucide-react';
-import { getWorkoutLogs } from '../services/storageService';
+import { getWorkoutLogs, getProgram } from '../services/storageService';
 import { getWorkoutAnalysis } from '../services/geminiService';
-import { WEEKLY_PROGRAM } from '../constants';
+import { DEFAULT_PROGRAM } from '../constants';
 
 export const AIRecommendations: React.FC = () => {
   const [analysis, setAnalysis] = useState<string | null>(null);
@@ -14,7 +15,7 @@ export const AIRecommendations: React.FC = () => {
     setError(false);
     try {
       const logs = getWorkoutLogs();
-      // Get last 5 logs
+      // Analysis uses the last 5 logs for context
       const recentLogs = logs
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 5);
@@ -25,7 +26,8 @@ export const AIRecommendations: React.FC = () => {
         return;
       }
 
-      const result = await getWorkoutAnalysis(recentLogs, WEEKLY_PROGRAM);
+      // We use the current dynamic program instead of a static constant
+      const result = await getWorkoutAnalysis(recentLogs, getProgram());
       setAnalysis(result);
     } catch (err) {
       setError(true);

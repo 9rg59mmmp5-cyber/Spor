@@ -2,42 +2,14 @@
 import { GoogleGenAI } from "@google/genai";
 import { WorkoutLog, WorkoutDay } from "../types";
 
-// Helper to safely get API key from Env or LocalStorage
-const getAI = () => {
-  let apiKey = '';
-
-  // 1. Check Local Storage (User entered via UI) - PRIORITY 1
-  // This allows the user to override any broken/dummy env key
-  if (typeof window !== 'undefined') {
-    try {
-        apiKey = localStorage.getItem('gemini_api_key') || '';
-    } catch (e) {
-        console.warn("Local storage access failed for API key");
-    }
-  }
-  
-  // 2. Check Process Env (Fallback) - PRIORITY 2
-  if (!apiKey) {
-      try {
-        if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-          apiKey = process.env.API_KEY;
-        }
-      } catch (e) {
-        // Ignore error
-      }
-  }
-  
-  // Initialize with provided key or a dummy one to prevent constructor error if key is missing
-  return new GoogleGenAI({ apiKey: apiKey || 'MISSING_KEY' });
-};
+// The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const askCoach = async (question: string, context: string): Promise<string> => {
   try {
-    const ai = getAI();
-    const model = 'gemini-2.5-flash';
-    
+    // For general Q&A tasks, use 'gemini-3-flash-preview'
     const response = await ai.models.generateContent({
-      model: model,
+      model: 'gemini-3-flash-preview',
       contents: `You are an expert fitness coach named "Coach Gemini". You are helpful, motivating, and concise.
       The user speaks Turkish. Respond in Turkish.
       
@@ -56,22 +28,17 @@ export const askCoach = async (question: string, context: string): Promise<strin
       }
     });
 
+    // Directly access the text property as per guidelines
     return response.text || "Üzgünüm, şu an cevap veremiyorum.";
   } catch (error: any) {
     console.error("AI Error:", error);
-    if (error.message?.includes('API key')) {
-        return "API Anahtarı hatası. Lütfen Ayarlar (Çark Simgesi) kısmından geçerli bir anahtar girin.";
-    }
     return "Bağlantı hatası oluştu. Lütfen tekrar deneyin.";
   }
 };
 
 export const getWorkoutAnalysis = async (recentLogs: WorkoutLog[], program: WorkoutDay[]): Promise<string> => {
   try {
-    const ai = getAI();
-    const model = 'gemini-2.5-flash';
-    
-    // Simplify logs for the prompt to save tokens
+    // Simplify logs summary to reduce token usage
     const logsSummary = recentLogs.map(log => ({
       date: log.date,
       day: log.dayId,
@@ -100,8 +67,9 @@ export const getWorkoutAnalysis = async (recentLogs: WorkoutLog[], program: Work
       Format: Plain text with bullet points.
     `;
 
+    // Use gemini-3-flash-preview for analysis tasks
     const response = await ai.models.generateContent({
-      model: model,
+      model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
         temperature: 0.7,
@@ -111,6 +79,6 @@ export const getWorkoutAnalysis = async (recentLogs: WorkoutLog[], program: Work
     return response.text || "Şu an analiz yapılamıyor.";
   } catch (error) {
     console.error("Analysis Error:", error);
-    return "Analiz servisi şu an kullanılamıyor. API anahtarınızı kontrol edin.";
+    return "Analiz servisi şu an kullanılamıyor.";
   }
 };

@@ -1,13 +1,14 @@
+
 import React, { useMemo } from 'react';
 import { getWorkoutLogs } from '../services/storageService';
 import { ExerciseSet } from '../types';
-import { Trophy, TrendingUp, Target, ArrowUp, Lock } from 'lucide-react';
+import { Trophy, Target, TrendingUp, Lock, ArrowRight, Zap } from 'lucide-react';
 
 const TRACKED_EXERCISES = [
-  { id: 'bp', name: 'Bench Press', short: 'Bench', milestoneStep: 20 }, // 60, 80, 100
-  { id: 'sq', name: 'Squat', short: 'Squat', milestoneStep: 20 },
-  { id: 'dl', name: 'Deadlift', short: 'Deadlift', milestoneStep: 20 },
-  { id: 'ohp', name: 'Overhead Press', short: 'OHP', milestoneStep: 10 }
+  { id: 'bp-raw', name: 'Bench Press', milestone: 100 },
+  { id: 'sq', name: 'Squat', milestone: 140 },
+  { id: 'dl', name: 'Deadlift', milestone: 180 },
+  { id: 'ohp-raw', name: 'Overhead Press', milestone: 60 }
 ];
 
 export const HistoryChart: React.FC = () => {
@@ -15,130 +16,92 @@ export const HistoryChart: React.FC = () => {
 
   const stats = useMemo(() => {
     return TRACKED_EXERCISES.map(ex => {
-      // Get all logs for this exercise
       const exerciseLogs = logs
         .filter(log => log.exercises && log.exercises[ex.id])
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       
       let currentMax = 0;
-      let lastWeekMax = 0;
-      let totalSets = 0;
+      let prevMax = 0;
 
       if (exerciseLogs.length > 0) {
-        // Current Max (Last Session)
-        const lastSession = exerciseLogs[exerciseLogs.length - 1];
-        const lastSets = lastSession.exercises[ex.id] as ExerciseSet[];
-        const validSets = lastSets.filter(s => s.completed && s.weight > 0);
-        if (validSets.length > 0) {
-           currentMax = Math.max(...validSets.map(s => s.weight));
-        }
+        const lastSets = exerciseLogs[exerciseLogs.length - 1].exercises[ex.id] as ExerciseSet[];
+        currentMax = Math.max(...lastSets.filter(s => s.completed).map(s => s.weight), 0);
 
-        // Previous Max (Session before last)
         if (exerciseLogs.length > 1) {
-             const prevSession = exerciseLogs[exerciseLogs.length - 2];
-             const prevSets = prevSession.exercises[ex.id] as ExerciseSet[];
-             const validPrevSets = prevSets.filter(s => s.completed && s.weight > 0);
-             if (validPrevSets.length > 0) {
-                 lastWeekMax = Math.max(...validPrevSets.map(s => s.weight));
-             }
+          const prevSets = exerciseLogs[exerciseLogs.length - 2].exercises[ex.id] as ExerciseSet[];
+          prevMax = Math.max(...prevSets.filter(s => s.completed).map(s => s.weight), 0);
         }
-        
-        // Total Sets All Time
-        exerciseLogs.forEach(l => {
-             const s = l.exercises[ex.id] as ExerciseSet[];
-             totalSets += s.filter(x => x.completed).length;
-        });
       }
 
-      // Progression Logic
-      const nextTarget = currentMax > 0 ? currentMax + 2.5 : 20; // Default start 20kg
-      const nextMilestone = (Math.floor(currentMax / ex.milestoneStep) + 1) * ex.milestoneStep;
-      const progressPercent = currentMax > 0 
-        ? Math.min(100, Math.max(5, ((currentMax - (nextMilestone - ex.milestoneStep)) / ex.milestoneStep) * 100))
-        : 0;
+      const nextTarget = currentMax > 0 ? currentMax + 2.5 : 20;
+      const progress = Math.min(100, Math.round((currentMax / ex.milestone) * 100));
 
-      return {
-        ...ex,
-        currentMax,
-        lastWeekMax,
-        nextTarget,
-        nextMilestone,
-        progressPercent,
-        totalSets,
-        hasData: exerciseLogs.length > 0
-      };
+      return { ...ex, currentMax, prevMax, nextTarget, progress, hasData: exerciseLogs.length > 0 };
     });
   }, [logs]);
 
   return (
-    <div className="space-y-4">
-      {stats.map((stat) => (
-        <div key={stat.id} className="relative overflow-hidden bg-black rounded-3xl border border-zinc-800 p-5 group">
-             {/* Background Gradient */}
-             <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-800/20 blur-3xl rounded-full -mr-10 -mt-10 group-hover:bg-primary/10 transition-colors duration-500"></div>
+    <div className="space-y-6">
+      <div className="bg-primary/10 border border-primary/20 rounded-3xl p-5 flex items-center gap-4">
+         <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-white shadow-lg shadow-primary/20">
+            <Zap size={24} fill="currentColor" />
+         </div>
+         <div>
+            <h3 className="text-white font-bold text-lg">Güç Analizi</h3>
+            <p className="text-zinc-500 text-xs">Ağırlıkları her hafta 2.5kg artırmaya odaklan.</p>
+         </div>
+      </div>
 
-             <div className="relative z-10">
-                {/* Header */}
-                <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
-                        <div className={`p-2.5 rounded-xl ${stat.hasData ? 'bg-zinc-900 text-white' : 'bg-zinc-900/50 text-zinc-600'}`}>
-                            <Trophy size={20} className={stat.hasData ? 'text-yellow-500' : 'opacity-20'} />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-bold text-white leading-none">{stat.name}</h3>
-                            <p className="text-xs text-zinc-500 mt-1">{stat.totalSets} Set tamamlandı</p>
+      <div className="grid grid-cols-1 gap-4">
+        {stats.map(stat => (
+          <div key={stat.id} className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 overflow-hidden relative group">
+             {stat.hasData ? (
+               <>
+                 <div className="flex justify-between items-start mb-4">
+                    <div>
+                        <h4 className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-1">{stat.name}</h4>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-black text-white">{stat.currentMax}</span>
+                            <span className="text-sm text-zinc-600 font-bold">kg</span>
                         </div>
                     </div>
-                    {stat.hasData && stat.currentMax > stat.lastWeekMax && (
-                        <div className="flex items-center gap-1 bg-emerald-500/10 text-emerald-500 px-2 py-1 rounded-lg">
-                            <TrendingUp size={14} />
-                            <span className="text-xs font-bold">+{stat.currentMax - stat.lastWeekMax}kg</span>
+                    <div className="text-right">
+                        <div className="flex items-center gap-1 text-emerald-500 font-bold text-xs bg-emerald-500/10 px-2 py-1 rounded-lg">
+                            <Target size={12} />
+                            Hedef: {stat.nextTarget}kg
                         </div>
-                    )}
-                </div>
-
-                {stat.hasData ? (
-                    <>
-                        {/* Main Numbers */}
-                        <div className="flex items-end gap-1 mb-4">
-                             <div className="flex-1">
-                                <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider mb-1">Şu Anki Max</p>
-                                <p className="text-3xl font-bold text-white">{stat.currentMax} <span className="text-sm font-medium text-zinc-600">kg</span></p>
-                             </div>
-                             <div className="flex-1 border-l border-zinc-800 pl-4">
-                                <p className="text-[10px] uppercase font-bold text-emerald-500 tracking-wider mb-1 flex items-center gap-1">
-                                    <Target size={10} /> Sıradaki Hedef
-                                </p>
-                                <p className="text-3xl font-bold text-emerald-500">{stat.nextTarget} <span className="text-sm font-medium text-emerald-500/50">kg</span></p>
-                             </div>
-                        </div>
-
-                        {/* Milestone Progress Bar */}
-                        <div className="mt-4">
-                            <div className="flex justify-between text-xs font-bold text-zinc-500 mb-2">
-                                <span>İlerleme</span>
-                                <span className="text-white">{stat.nextMilestone} kg Kilidi</span>
-                            </div>
-                            <div className="h-3 w-full bg-zinc-900 rounded-full overflow-hidden border border-zinc-800/50 relative">
-                                <div 
-                                    className="h-full bg-gradient-to-r from-blue-600 to-primary rounded-full transition-all duration-1000"
-                                    style={{ width: `${stat.progressPercent}%` }}
-                                ></div>
-                            </div>
-                            <p className="text-[10px] text-zinc-600 mt-1.5 text-right">
-                                {stat.nextMilestone} kg hedefine %{Math.round(stat.progressPercent)} yaklaştın
-                            </p>
-                        </div>
-                    </>
-                ) : (
-                    <div className="py-4 flex flex-col items-center justify-center text-zinc-600 gap-2 border border-dashed border-zinc-800 rounded-xl bg-zinc-900/20">
-                         <Lock size={18} />
-                         <span className="text-xs">Veri yok. Antrenman yapınca açılacak.</span>
                     </div>
-                )}
-             </div>
-        </div>
-      ))}
+                 </div>
+
+                 <div className="space-y-2">
+                    <div className="flex justify-between text-[10px] font-bold">
+                        <span className="text-zinc-500">{stat.milestone}kg Hedefine İlerleme</span>
+                        <span className="text-primary">%{stat.progress}</span>
+                    </div>
+                    <div className="h-2 w-full bg-black rounded-full overflow-hidden border border-zinc-800">
+                        <div 
+                            className="h-full bg-primary rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(10,132,255,0.5)]"
+                            style={{ width: `${stat.progress}%` }}
+                        ></div>
+                    </div>
+                 </div>
+
+                 <div className="mt-4 pt-4 border-t border-zinc-800 flex justify-between items-center">
+                    <p className="text-[10px] text-zinc-500 font-medium italic">
+                        {stat.currentMax >= stat.prevMax ? "Gelişim devam ediyor! 🔥" : "Dinlen ve tekrar dene."}
+                    </p>
+                    <ArrowRight size={14} className="text-zinc-700" />
+                 </div>
+               </>
+             ) : (
+               <div className="py-6 flex flex-col items-center justify-center text-zinc-700 gap-2">
+                  <Lock size={20} className="opacity-20" />
+                  <span className="text-[10px] font-bold uppercase tracking-tighter">{stat.name} Verisi Bekleniyor</span>
+               </div>
+             )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

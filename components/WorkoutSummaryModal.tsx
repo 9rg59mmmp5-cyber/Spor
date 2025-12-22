@@ -1,7 +1,9 @@
+
 import React from 'react';
-import { Trophy, Clock, Dumbbell, Repeat, CheckCircle2, Share2, X } from 'lucide-react';
-import { WorkoutLog, WorkoutDay } from '../types';
-import { WEEKLY_PROGRAM } from '../constants';
+import { Trophy, Clock, Dumbbell, Repeat, CheckCircle2 } from 'lucide-react';
+import { WorkoutLog } from '../types';
+import { DEFAULT_PROGRAM } from '../constants';
+import { getProgram } from '../services/storageService';
 
 interface Props {
   log: WorkoutLog;
@@ -9,7 +11,8 @@ interface Props {
 }
 
 export const WorkoutSummaryModal: React.FC<Props> = ({ log, onClose }) => {
-  const dayName = WEEKLY_PROGRAM.find(d => d.id === log.dayId)?.name || 'Antrenman';
+  const program = getProgram();
+  const dayName = program.find(d => d.id === log.dayId)?.name || 'Antrenman';
   
   const formatTime = (seconds?: number) => {
     if (!seconds) return '0dk';
@@ -20,7 +23,8 @@ export const WorkoutSummaryModal: React.FC<Props> = ({ log, onClose }) => {
   };
 
   const getExerciseName = (id: string) => {
-    for (const day of WEEKLY_PROGRAM) {
+    const currentProgram = getProgram();
+    for (const day of currentProgram) {
         const ex = day.exercises.find(e => e.id === id);
         if (ex) return ex.name;
     }
