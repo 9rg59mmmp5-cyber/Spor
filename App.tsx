@@ -261,9 +261,7 @@ const App: React.FC = () => {
                                         className={`w-full text-left p-5 flex items-center justify-between transition-all ${isRecommended && !isEditMode ? 'bg-primary/5' : ''}`}
                                     >
                                         <div className="flex items-center gap-4">
-                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black ${isRecommended ? 'bg-primary text-white' : 'bg-black text-zinc-600'}`}>
-                                                {day.name.charAt(0)}
-                                            </div>
+                                            {/* LOGO KALDIRILDI - SADECE TEXT KALDI */}
                                             <div className="flex-1">
                                                 {isEditMode ? (
                                                     <input 
