@@ -220,13 +220,16 @@ const App: React.FC = () => {
         {currentView === AppView.DASHBOARD && (
           <div className="animate-in fade-in duration-500 pt-14 px-5 pb-10">
              <div className="flex justify-between items-start mb-8">
-                <div>
-                    <h1 className="text-2xl font-black tracking-tighter">Spor Takip</h1>
-                    <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mt-1">
-                        {new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long'})}
-                    </p>
+                <div className="flex items-center gap-4">
+                    <img src="/app-icon.png" alt="Logo" className="w-14 h-14 rounded-2xl border border-white/10 shadow-2xl" />
+                    <div>
+                        <h1 className="text-2xl font-black tracking-tighter leading-none">Spor Takip</h1>
+                        <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mt-1">
+                            {new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long'})}
+                        </p>
+                    </div>
                 </div>
-                <button onClick={() => navigate(AppView.PROFILE)} className="w-10 h-10 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-primary">
+                <button onClick={() => navigate(AppView.PROFILE)} className="w-10 h-10 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-primary mt-2">
                     <Settings size={20} />
                 </button>
              </div>

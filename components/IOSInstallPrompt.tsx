@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Share, X, PlusSquare } from 'lucide-react';
 
@@ -41,7 +42,7 @@ export const IOSInstallPrompt: React.FC = () => {
         
         <div className="flex gap-4 pr-6 mb-4">
             <img 
-                src="https://cdn-icons-png.flaticon.com/512/2548/2548534.png" 
+                src="/app-icon.png" 
                 alt="App Icon" 
                 className="w-14 h-14 rounded-xl shadow-lg border border-slate-700"
             />
