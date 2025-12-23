@@ -15,6 +15,27 @@ export const getWorkoutLogs = (): WorkoutLog[] => {
   } catch { return []; }
 };
 
+export const deleteWorkoutLog = (logToDelete: WorkoutLog): WorkoutLog[] => {
+  const logs = getWorkoutLogs();
+  
+  // Kesin eşleşme için Index bulma yöntemi (En güvenilir yöntem)
+  const index = logs.findIndex(l => {
+    // 1. Eğer ikisinde de startTime varsa, bu benzersiz ID gibidir.
+    if (l.startTime && logToDelete.startTime) {
+        return String(l.startTime) === String(logToDelete.startTime);
+    }
+    // 2. Eğer startTime yoksa (eski veri), Tarih, DayID ve Süre eşleşmesine bak.
+    return l.date === logToDelete.date && l.dayId === logToDelete.dayId && l.duration === logToDelete.duration;
+  });
+
+  if (index !== -1) {
+    logs.splice(index, 1); // Sadece bulunan o spesifik kaydı sil
+    localStorage.setItem(LOGS_KEY, JSON.stringify(logs));
+  }
+  
+  return logs;
+};
+
 export const getProgram = (): WorkoutDay[] => {
   try {
     const stored = localStorage.getItem(PROGRAM_KEY);
@@ -41,12 +62,20 @@ export const getNextRecommendedWorkoutId = (): string => {
 
 export const saveWorkoutLog = (log: WorkoutLog): WorkoutLog => {
   const logs = getWorkoutLogs();
-  const history = logs.filter(l => !(l.date === log.date && l.dayId === log.dayId));
   
+  // Eğer aynı startTime'a sahip bir kayıt zaten varsa, onu güncelle (Update/Edit senaryosu)
+  const existingIndex = logs.findIndex(l => {
+      if (log.startTime && l.startTime) return String(l.startTime) === String(log.startTime);
+      return false;
+  });
+
   // Volume and PR Calculation
   let totalVolume = 0;
   let totalSets = 0;
   const prs: string[] = [];
+  
+  // Geçmiş max değerleri hesapla (PR kontrolü için)
+  const history = [...logs]; // Mevcut logları referans al
 
   Object.entries(log.exercises).forEach(([id, sets]) => {
     const validSets = sets.filter(s => s.completed && s.weight > 0);
@@ -57,6 +86,9 @@ export const saveWorkoutLog = (log: WorkoutLog): WorkoutLog => {
     if (currentMax > 0) {
       let historicalMax = 0;
       history.forEach(h => {
+        // Eğer güncellenen log kendisiyse PR hesabına katma
+        if (log.startTime && h.startTime && String(h.startTime) === String(log.startTime)) return;
+        
         const oldSets = h.exercises[id];
         if (oldSets) {
           const max = Math.max(...oldSets.filter(s => s.completed).map(s => s.weight), 0);
@@ -68,9 +100,12 @@ export const saveWorkoutLog = (log: WorkoutLog): WorkoutLog => {
   });
 
   const finalLog = { ...log, totalVolume, totalSets, prs };
-  const existingIndex = logs.findIndex(l => l.date === log.date && l.dayId === log.dayId);
-  if (existingIndex >= 0) logs[existingIndex] = finalLog;
-  else logs.push(finalLog);
+
+  if (existingIndex > -1) {
+      logs[existingIndex] = finalLog;
+  } else {
+      logs.push(finalLog);
+  }
   
   localStorage.setItem(LOGS_KEY, JSON.stringify(logs));
   return finalLog;

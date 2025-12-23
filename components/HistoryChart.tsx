@@ -47,7 +47,7 @@ export const HistoryChart: React.FC = () => {
             <Zap size={24} fill="currentColor" />
          </div>
          <div>
-            <h3 className="text-white font-bold text-lg">Güç Analizi</h3>
+            <h3 className="text-white font-bold text-base">Güç Analizi</h3>
             <p className="text-zinc-500 text-xs">Ağırlıkları her hafta 2.5kg artırmaya odaklan.</p>
          </div>
       </div>
@@ -61,7 +61,7 @@ export const HistoryChart: React.FC = () => {
                     <div>
                         <h4 className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-1">{stat.name}</h4>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-black text-white">{stat.currentMax}</span>
+                            <span className="text-2xl font-black text-white">{stat.currentMax}</span>
                             <span className="text-sm text-zinc-600 font-bold">kg</span>
                         </div>
                     </div>
