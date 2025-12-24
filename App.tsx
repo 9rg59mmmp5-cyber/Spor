@@ -6,6 +6,7 @@ import { WorkoutTimer } from './components/WorkoutTimer';
 import { RestTimer } from './components/RestTimer';
 import { ProfileView } from './components/ProfileView';
 import { WorkoutSummaryModal } from './components/WorkoutSummaryModal';
+import { InstallPrompt } from './components/InstallPrompt';
 import { AppView, WorkoutDay, ExerciseSet, WorkoutLog, ExerciseData, UserSettings } from './types';
 import { saveWorkoutLog, getWorkoutLogs, deleteWorkoutLog, startSession, endSession, getSessionStartTime, getProgram, saveProgram, getNextRecommendedWorkoutId, getUserSettings } from './services/storageService';
 import { triggerHaptic } from './utils/audio';
@@ -541,6 +542,9 @@ const App: React.FC = () => {
       
       {restTargetTime && <RestTimer targetTime={restTargetTime} onDismiss={() => setRestTargetTime(null)} onAddSeconds={(s) => setRestTargetTime(restTargetTime + (s * 1000))} />}
       {completedWorkoutLog && <WorkoutSummaryModal log={completedWorkoutLog} onClose={() => {setCompletedWorkoutLog(null); navigate(AppView.DASHBOARD);}} />}
+      
+      {/* Install Prompt for PWA */}
+      <InstallPrompt />
 
       {showFinishConfirm && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center p-4 animate-in fade-in duration-200">

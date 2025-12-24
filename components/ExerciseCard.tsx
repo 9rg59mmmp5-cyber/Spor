@@ -120,10 +120,11 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
         const match = tempTarget.match(/^(\d+)x/);
         if (match) {
             const newCount = parseInt(match[1]);
+            let newSets = [...sets];
+            
             if (newCount > sets.length) {
                 const setsToAdd = newCount - sets.length;
                 const lastSet = sets[sets.length - 1] || { weight: 0, reps: 0 };
-                const newSets = [...sets];
                 for(let i=0; i<setsToAdd; i++) {
                     newSets.push({
                         _id: generateId(),
@@ -132,6 +133,11 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
                         completed: false
                     });
                 }
+                setSets(newSets);
+                updateParent(newSets);
+            } else if (newCount < sets.length) {
+                // Set sayısı azaltıldıysa sondakileri sil
+                newSets = newSets.slice(0, newCount);
                 setSets(newSets);
                 updateParent(newSets);
             }
@@ -207,13 +213,18 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
   };
 
   // --- MOBİL UYUMLU SWIPE ---
-  const handleTouchStart = (e: React.TouchEvent, id: string) => {
+  const handleTouchStart = (setEvent: React.TouchEvent, id: string) => {
     const set = sets.find(s => s._id === id);
     if (!set) return; 
-    if ((e.target as HTMLElement).closest('.delete-btn-area')) return;
+    
+    // Android Fix: Eğer tıklanan element bir INPUT ise swipe işlemini başlatma.
+    const target = setEvent.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.closest('input')) return;
+    
+    if (target.closest('.delete-btn-area')) return;
 
-    touchStart.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
+    touchStart.current = setEvent.touches[0].clientX;
+    touchStartY.current = setEvent.touches[0].clientY;
     isDragging.current = true;
   };
 
@@ -226,6 +237,7 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
     const diffX = touchStart.current - currentX;
     const diffY = Math.abs(currentY - touchStartY.current);
 
+    // Dikey kaydırma (scroll) yapılıyorsa swipe'ı iptal et
     if (diffY > Math.abs(diffX)) {
         isDragging.current = false;
         return;
@@ -279,7 +291,7 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
                                 <input 
                                     value={tempTarget}
                                     onChange={(e) => setTempTarget(e.target.value)}
-                                    className="bg-transparent text-white text-xs font-bold uppercase w-20 text-center focus:outline-none"
+                                    className="bg-transparent text-white text-xs font-bold uppercase w-24 text-center focus:outline-none"
                                     autoFocus
                                     onBlur={saveTargetChange}
                                     onKeyDown={(e) => e.key === 'Enter' && saveTargetChange()}
@@ -294,7 +306,7 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
                                 }}
                                 className="bg-zinc-900 border border-zinc-800 text-zinc-500 text-[10px] font-bold px-3 py-1.5 rounded-lg tracking-wider uppercase active:bg-zinc-800 active:text-white transition-colors flex items-center gap-1"
                             >
-                                {displaySetBadge} SET <Edit2 size={8} className="opacity-50" />
+                                {displaySetBadge} <Edit2 size={10} className="opacity-50" />
                             </button>
                         )}
                         
@@ -318,7 +330,6 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
             </div>
 
             {/* MAVİ İLERLEME ÇİZGİSİ (SEGMENTED BAR) */}
-            {/* H-0.5 ile çok daha ince ve zarif */}
             <div className="flex gap-0.5 mt-4 h-0.5 w-full px-1">
                 {sets.map((s, i) => (
                     <div 
@@ -359,7 +370,6 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
                     }
 
                     // --- RENK MANTIĞI ---
-                    // ÖNEMLİ: bg-zinc-900 (opak) kullanıldı, böylece kırmızı buton alttan görünmez.
                     const rowBorderClass = set.completed 
                         ? 'border-emerald-500/50 bg-zinc-900 shadow-[inset_0_0_15px_rgba(16,185,129,0.05)]' 
                         : (warningSetIndex === index ? 'border-red-500 bg-zinc-900' : 'border-zinc-800 bg-zinc-900');
@@ -387,7 +397,7 @@ export const ExerciseCard: React.FC<Props> = ({ exercise, initialLogs, onUpdate,
 
                             {/* Set Row Content - Üst Katman */}
                             <div 
-                                className={`relative z-10 grid grid-cols-10 gap-2 items-center rounded-xl p-1 transition-transform duration-200 border ${rowBorderClass}`}
+                                className={`relative z-10 grid grid-cols-10 gap-2 items-center rounded-xl p-1 transition-transform duration-200 border select-none ${rowBorderClass}`}
                                 style={{ 
                                     transform: `translateX(-${swipedIdx === set._id ? swipeOffset : 0}px)`,
                                     touchAction: 'pan-y'
